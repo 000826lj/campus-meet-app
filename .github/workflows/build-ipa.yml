@@ -3,6 +3,9 @@ name: Build iOS IPA
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-latest
@@ -51,8 +54,16 @@ jobs:
           zip -qry CampusMeet.ipa Payload
           ls -lh CampusMeet.ipa
 
-      - name: Upload IPA
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: CampusMeet-ipa
           path: ios-app/CampusMeet.ipa
+
+      - name: Publish to Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.0.${{ github.run_number }}" ios-app/CampusMeet.ipa \
+            --title "北城测试 v1.0.${{ github.run_number }}" \
+            --notes "未签名 IPA，用全能签+开发者证书签名后安装"
