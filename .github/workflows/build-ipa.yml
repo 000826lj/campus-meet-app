@@ -1,0 +1,58 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Unpack project archive
+        run: |
+          ditto -x -k ios-app-project.zip ios-app
+          cd ios-app
+          ls -la
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: |
+          cd ios-app
+          xcodegen generate
+
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios-app
+          pod install
+
+      - name: Build unsigned app
+        run: |
+          cd ios-app
+          set -o pipefail
+          xcodebuild -workspace CampusMeet.xcworkspace \
+            -scheme CampusMeet \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" | tail -n 200
+
+      - name: Package IPA
+        run: |
+          cd ios-app
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/CampusMeet.app Payload/
+          zip -qry CampusMeet.ipa Payload
+          ls -lh CampusMeet.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: CampusMeet-ipa
+          path: ios-app/CampusMeet.ipa
